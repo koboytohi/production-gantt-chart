@@ -2,6 +2,15 @@ import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
 from datetime import datetime
+import io
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from matplotlib.backends.backend_pdf import PdfPages
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib import colors as rl_colors
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+from reportlab.lib.styles import getSampleStyleSheet
 
 # Page config
 st.set_page_config(
@@ -11,7 +20,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# IMPROVED Custom CSS for better visibility
+# Custom CSS
 st.markdown("""
     <style>
     .main {background-color: #f8f9fa;}
@@ -58,6 +67,43 @@ uploaded_file = st.file_uploader(
 )
 st.markdown("</div>", unsafe_allow_html=True)
 st.markdown("<br>", unsafe_allow_html=True)
+
+def create_gantt_chart_matplotlib(df_sorted):
+    """Create Gantt chart using matplotlib for PDF export"""
+    fig, ax = plt.subplots(figsize=(14, max(8, len(df_sorted) * 0.4)))
+    
+    colors = ['#2E86AB', '#A23B72', '#F18F01', '#C73E1D', '#6A4C93', 
+              '#06A77D', '#D90368', '#F08700', '#0E9594', '#8B2635']
+    
+    y_pos = range(len(df_sorted))
+    
+    for idx, (i, row) in enumerate(df_sorted.iterrows()):
+        start = mdates.date2num(row['Start Time'])
+        end = mdates.date2num(row['End Time'])
+        duration = end - start
+        color = colors[idx % len(colors)]
+        
+        ax.barh(idx, duration, left=start, height=0.8, 
+                color=color, edgecolor='white', linewidth=2)
+    
+    # Format
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(df_sorted['displayLabel'].tolist(), fontsize=9)
+    ax.invert_yaxis()
+    
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m %H:%M'))
+    ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+    plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha='right')
+    
+    ax.set_xlabel('Χρονική Περίοδος', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Ενέργειες / Υλικά', fontsize=12, fontweight='bold')
+    ax.set_title('Production Schedule - Gantt Chart', fontsize=16, fontweight='bold', pad=20)
+    
+    ax.grid(True, axis='x', alpha=0.3, linestyle='--')
+    ax.set_facecolor('#fafafa')
+    
+    plt.tight_layout()
+    return fig
 
 if uploaded_file is not None:
     try:
@@ -121,7 +167,7 @@ if uploaded_file is not None:
                 if selected_shift != 'Όλα':
                     df_sorted = df_sorted[df_sorted['Shift'] == selected_shift]
             
-            # Calculate duration (in hours only, no Timedelta objects)
+            # Calculate duration
             df_sorted['Duration_hours'] = (df_sorted['End Time'] - df_sorted['Start Time']).dt.total_seconds() / 3600
             
             # Stats
@@ -139,7 +185,7 @@ if uploaded_file is not None:
             
             st.markdown("---")
             
-            # Create Gantt Chart
+            # Create Plotly Gantt Chart for display
             fig = go.Figure()
             
             colors = ['#2E86AB', '#A23B72', '#F18F01', '#C73E1D', '#6A4C93', 
@@ -148,12 +194,10 @@ if uploaded_file is not None:
             for idx, row in df_sorted.iterrows():
                 color = colors[idx % len(colors)]
                 
-                # Convert to timestamp (milliseconds) for Plotly
-                start_ts = row['Start Time'].value / 1000000  # Convert to milliseconds
+                start_ts = row['Start Time'].value / 1000000
                 end_ts = row['End Time'].value / 1000000
                 duration_ms = end_ts - start_ts
                 
-                # Hover text
                 hover_text = f"<b>{row['Description']}</b><br>"
                 hover_text += f"Start: {row['Start Time'].strftime('%d/%m/%Y %H:%M')}<br>"
                 hover_text += f"End: {row['End Time'].strftime('%d/%m/%Y %H:%M')}<br>"
@@ -220,12 +264,12 @@ if uploaded_file is not None:
             # Display
             st.plotly_chart(fig, use_container_width=True)
             
-            # Download
+            # Download buttons
             st.markdown("---")
             col1, col2, col3 = st.columns([2, 1, 1])
             
             with col2:
-                # Prepare CSV without Timedelta
+                # CSV Export
                 df_export = df_sorted.copy()
                 df_export = df_export.drop(columns=['uniqueId', 'displayLabel'], errors='ignore')
                 csv = df_export.to_csv(index=False).encode('utf-8')
@@ -237,10 +281,21 @@ if uploaded_file is not None:
                 )
             
             with col3:
-                # Export to PDF
+                # PDF Export with matplotlib chart
                 try:
-                    # Create PDF from the plotly figure
-                    pdf_bytes = fig.to_image(format="pdf", width=1400, height=max(800, len(df_sorted) * 40))
+                    # Create matplotlib chart
+                    chart_fig = create_gantt_chart_matplotlib(df_sorted)
+                    
+                    # Save to PDF
+                    pdf_buffer = io.BytesIO()
+                    with PdfPages(pdf_buffer) as pdf:
+                        pdf.savefig(chart_fig, bbox_inches='tight', dpi=300)
+                    
+                    plt.close(chart_fig)
+                    
+                    pdf_bytes = pdf_buffer.getvalue()
+                    pdf_buffer.close()
+                    
                     st.download_button(
                         label="📄 Κατέβασε PDF",
                         data=pdf_bytes,
@@ -249,6 +304,8 @@ if uploaded_file is not None:
                     )
                 except Exception as e:
                     st.error(f"PDF export error: {str(e)}")
+                    import traceback
+                    st.code(traceback.format_exc())
         
     except Exception as e:
         st.error(f"❌ Σφάλμα: {str(e)}")
