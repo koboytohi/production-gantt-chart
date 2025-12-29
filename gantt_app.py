@@ -4,36 +4,146 @@ import pandas as pd
 from datetime import datetime
 
 # Page config
-st.set_page_config(page_title="Production Gantt Chart", layout="wide", page_icon="📊")
+st.set_page_config(
+    page_title="Production Gantt Chart", 
+    layout="wide", 
+    page_icon="📊",
+    initial_sidebar_state="expanded"
+)
 
-# Custom CSS
+# IMPROVED Custom CSS for better visibility
 st.markdown("""
     <style>
+    /* Main background */
     .main {
         background-color: #f8f9fa;
     }
+    
+    /* Text colors */
+    .stMarkdown, .stText, p, span, label {
+        color: #1e1e1e !important;
+    }
+    
+    /* Headers */
+    h1, h2, h3, h4, h5, h6 {
+        color: #2c3e50 !important;
+    }
+    
+    /* Buttons */
     .stButton>button {
         width: 100%;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        color: white !important;
         font-weight: 600;
         border: none;
         padding: 12px;
         border-radius: 10px;
     }
+    
+    /* File uploader */
+    .stFileUploader {
+        background-color: white;
+        border: 2px solid #667eea;
+        border-radius: 10px;
+        padding: 20px;
+    }
+    
+    /* Dataframe */
+    .stDataFrame {
+        background-color: white;
+        border-radius: 10px;
+        padding: 10px;
+    }
+    
+    /* Metrics */
+    .stMetric {
+        background-color: white;
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid #e0e0e0;
+    }
+    
+    .stMetric label {
+        color: #2c3e50 !important;
+        font-weight: 600 !important;
+    }
+    
+    .stMetric .metric-value {
+        color: #667eea !important;
+        font-size: 28px !important;
+        font-weight: 700 !important;
+    }
+    
+    /* Sidebar */
+    .css-1d391kg, [data-testid="stSidebar"] {
+        background-color: #f0f2f6;
+    }
+    
+    /* Expander */
+    .streamlit-expanderHeader {
+        background-color: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        color: #2c3e50 !important;
+        font-weight: 600 !important;
+    }
+    
+    /* Success/Error boxes */
+    .stSuccess {
+        background-color: #d4edda;
+        color: #155724 !important;
+        border-radius: 8px;
+        padding: 15px;
+    }
+    
+    .stError {
+        background-color: #f8d7da;
+        color: #721c24 !important;
+        border-radius: 8px;
+        padding: 15px;
+    }
+    
+    .stInfo {
+        background-color: #d1ecf1;
+        color: #0c5460 !important;
+        border-radius: 8px;
+        padding: 15px;
+    }
+    
+    /* Select boxes and inputs */
+    .stSelectbox, .stRadio {
+        background-color: white;
+    }
+    
+    /* Better contrast for all text */
+    div[data-testid="stMarkdownContainer"] p {
+        color: #2c3e50 !important;
+    }
+    
+    /* Download button */
+    .stDownloadButton>button {
+        background-color: #28a745;
+        color: white !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# Title
-st.title("📊 Production Schedule - Gantt Chart")
+# Title with better styling
+st.markdown("<h1 style='text-align: center; color: #2c3e50;'>📊 Production Schedule - Gantt Chart</h1>", unsafe_allow_html=True)
 st.markdown("---")
 
-# File uploader
+# File uploader with clear instructions
+st.markdown("<div style='background-color: white; padding: 20px; border-radius: 10px; border: 2px solid #667eea;'>", unsafe_allow_html=True)
+st.markdown("<h3 style='color: #2c3e50;'>📁 Ανέβασε το Excel αρχείο σου</h3>", unsafe_allow_html=True)
+st.markdown("<p style='color: #666;'>Το αρχείο πρέπει να έχει φύλλο 'schedule' με στήλες: Description, Start Time, End Time</p>", unsafe_allow_html=True)
 uploaded_file = st.file_uploader(
-    "Ανέβασε το Excel αρχείο σου (με φύλλο 'schedule')", 
+    "Επιλογή αρχείου", 
     type=['xlsx', 'xls'],
-    help="Το αρχείο πρέπει να έχει φύλλο 'schedule' με στήλες: Description, Start Time, End Time"
+    help="Το αρχείο πρέπει να έχει φύλλο 'schedule' με στήλες: Description, Start Time, End Time",
+    label_visibility="collapsed"
 )
+st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("<br>", unsafe_allow_html=True)
 
 if uploaded_file is not None:
     try:
@@ -44,7 +154,7 @@ if uploaded_file is not None:
         available_sheets = excel_file.sheet_names
         
         # Sidebar for controls
-        st.sidebar.header("⚙️ Ρυθμίσεις")
+        st.sidebar.markdown("<h2 style='color: #2c3e50;'>⚙️ Ρυθμίσεις</h2>", unsafe_allow_html=True)
         
         # Sheet selection
         if 'schedule' in [s.lower() for s in available_sheets]:
@@ -74,7 +184,7 @@ if uploaded_file is not None:
         
         if missing_cols:
             st.error(f"❌ Λείπουν οι στήλες: {', '.join(missing_cols)}")
-            st.info("Διαθέσιμες στήλες: " + ", ".join(df.columns.tolist()))
+            st.info(f"📌 Διαθέσιμες στήλες: {', '.join(df.columns.tolist())}")
         else:
             # Convert to datetime
             df['Start Time'] = pd.to_datetime(df['Start Time'])
@@ -107,11 +217,11 @@ if uploaded_file is not None:
                 if selected_shift != 'Όλα':
                     df_sorted = df_sorted[df_sorted['Shift'] == selected_shift]
             
-            # Calculate duration
-            df_sorted['Duration'] = df_sorted['End Time'] - df_sorted['Start Time']
-            df_sorted['Duration_hours'] = df_sorted['Duration'].dt.total_seconds() / 3600
+            # Calculate duration - Fix for Timedelta serialization
+            df_sorted['Duration_hours'] = (df_sorted['End Time'] - df_sorted['Start Time']).dt.total_seconds() / 3600
             
-            # Statistics
+            # Statistics with better styling
+            st.markdown("<br>", unsafe_allow_html=True)
             col1, col2, col3 = st.columns(3)
             with col1:
                 st.metric("🎯 Σύνολο Ενεργειών", len(df_sorted))
@@ -125,11 +235,12 @@ if uploaded_file is not None:
             
             st.markdown("---")
             
-            # Create Gantt Chart
+            # Create Gantt Chart with high contrast colors
             fig = go.Figure()
             
-            colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', 
-                      '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+            # High contrast color palette
+            colors = ['#2E86AB', '#A23B72', '#F18F01', '#C73E1D', '#6A4C93', 
+                      '#06A77D', '#D90368', '#F08700', '#0E9594', '#8B2635']
             
             for idx, row in df_sorted.iterrows():
                 color = colors[idx % len(colors)]
@@ -150,23 +261,26 @@ if uploaded_file is not None:
                     hover_text += f"Prod. Time: {row['Prod. Time']}<br>"
                 
                 fig.add_trace(go.Bar(
-                    x=[row['Duration']],
+                    x=[pd.Timedelta(hours=row['Duration_hours'])],
                     y=[row['displayLabel']],
                     base=row['Start Time'],
                     orientation='h',
-                    marker=dict(color=color, line=dict(color='white', width=2)),
+                    marker=dict(
+                        color=color, 
+                        line=dict(color='white', width=2)
+                    ),
                     name=row['Description'],
                     hovertemplate=hover_text + '<extra></extra>',
                     showlegend=False
                 ))
             
-            # Layout
+            # Layout with better contrast
             fig.update_layout(
                 title={
                     'text': 'Production Schedule - Gantt Chart',
                     'x': 0.5,
                     'xanchor': 'center',
-                    'font': {'size': 24, 'color': '#2c3e50'}
+                    'font': {'size': 26, 'color': '#1e1e1e', 'family': 'Arial Black'}
                 },
                 xaxis_title='Χρονική Περίοδος',
                 yaxis_title='Ενέργειες / Υλικά',
@@ -176,7 +290,9 @@ if uploaded_file is not None:
                     tickangle=-45,
                     showgrid=True,
                     gridwidth=1,
-                    gridcolor='lightgray'
+                    gridcolor='#d0d0d0',
+                    tickfont=dict(size=12, color='#1e1e1e'),
+                    title_font=dict(size=14, color='#1e1e1e', family='Arial')
                 ),
                 yaxis=dict(
                     autorange='reversed',
@@ -184,13 +300,16 @@ if uploaded_file is not None:
                     categoryarray=df_sorted['displayLabel'].tolist(),
                     showgrid=True,
                     gridwidth=1,
-                    gridcolor='lightgray'
+                    gridcolor='#d0d0d0',
+                    tickfont=dict(size=11, color='#1e1e1e'),
+                    title_font=dict(size=14, color='#1e1e1e', family='Arial')
                 ),
                 height=max(600, len(df_sorted) * 40),
                 hovermode='closest',
-                plot_bgcolor='white',
+                plot_bgcolor='#fafafa',
                 paper_bgcolor='white',
-                margin=dict(l=300, r=50, t=80, b=100)
+                margin=dict(l=300, r=50, t=100, b=100),
+                font=dict(color='#1e1e1e')
             )
             
             # Display chart
@@ -213,31 +332,41 @@ if uploaded_file is not None:
         st.info("Βεβαιώσου ότι το αρχείο είναι έγκυρο Excel και έχει τις σωστές στήλες.")
 
 else:
-    # Instructions
-    st.info("👆 Ανέβασε το Excel αρχείο σου για να δημιουργηθεί το Gantt Chart")
-    
+    # Instructions with better visibility
     st.markdown("""
-    ### 📝 Οδηγίες:
+    <div style='background-color: #d1ecf1; padding: 25px; border-radius: 10px; border-left: 5px solid #0c5460;'>
+        <h3 style='color: #0c5460; margin-top: 0;'>📝 Οδηγίες Χρήσης</h3>
+        <p style='color: #0c5460; font-size: 16px; line-height: 1.6;'>
+            <strong>1.</strong> Ανέβασε αρχείο Excel (.xlsx) που περιέχει φύλλο με όνομα <strong>"schedule"</strong><br>
+            <strong>2.</strong> <strong>Απαραίτητες στήλες:</strong><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;• <code>Description</code> - Περιγραφή ενέργειας/υλικού<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;• <code>Start Time</code> - Ημερομηνία και ώρα έναρξης<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;• <code>End Time</code> - Ημερομηνία και ώρα λήξης<br>
+            <strong>3.</strong> <strong>Προαιρετικές στήλες:</strong><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;• <code>Shift</code> - Βάρδια (Morning, Evening, Night)<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;• <code>Qnt</code> - Ποσότητα<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;• <code>Capacity/hr</code> - Χωρητικότητα ανά ώρα<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;• <code>Prod. Time</code> - Χρόνος παραγωγής
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
     
-    1. **Ανέβασε αρχείο Excel (.xlsx)** που περιέχει φύλλο με όνομα **"schedule"**
-    2. **Απαραίτητες στήλες:**
-       - `Description` - Περιγραφή ενέργειας/υλικού
-       - `Start Time` - Ημερομηνία και ώρα έναρξης
-       - `End Time` - Ημερομηνία και ώρα λήξης
-    3. **Προαιρετικές στήλες:**
-       - `Shift` - Βάρδια (Morning, Evening, Night)
-       - `Qnt` - Ποσότητα
-       - `Capacity/hr` - Χωρητικότητα ανά ώρα
-       - `Prod. Time` - Χρόνος παραγωγής
+    st.markdown("<br>", unsafe_allow_html=True)
     
-    ### ✨ Χαρακτηριστικά:
-    - 📊 Διαδραστικό Gantt Chart
-    - 🔍 Hover για λεπτομέρειες
-    - 📈 Αυτόματες στατιστικές
-    - 🎯 Φίλτρα και ταξινόμηση
-    - 📥 Export σε CSV
-    - 🎨 Κάθε ενέργεια με μοναδικό χρώμα
-    """)
+    # Features box
+    st.markdown("""
+    <div style='background-color: white; padding: 25px; border-radius: 10px; border: 1px solid #e0e0e0;'>
+        <h3 style='color: #2c3e50; margin-top: 0;'>✨ Χαρακτηριστικά</h3>
+        <ul style='color: #2c3e50; font-size: 15px; line-height: 1.8;'>
+            <li>📊 Διαδραστικό Gantt Chart</li>
+            <li>🔍 Hover για λεπτομέρειες</li>
+            <li>📈 Αυτόματες στατιστικές</li>
+            <li>🎯 Φίλτρα και ταξινόμηση</li>
+            <li>📥 Export σε CSV</li>
+            <li>🎨 Κάθε ενέργεια με μοναδικό χρώμα</li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
     
     # Sample data
     with st.expander("💡 Παράδειγμα Δεδομένων"):
@@ -254,6 +383,6 @@ else:
 # Footer
 st.markdown("---")
 st.markdown(
-    "<div style='text-align: center; color: gray;'>Production Gantt Chart | Powered by Streamlit & Plotly</div>",
+    "<div style='text-align: center; color: #666; font-size: 14px;'>Production Gantt Chart | Powered by Streamlit & Plotly</div>",
     unsafe_allow_html=True
 )
